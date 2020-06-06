@@ -12,10 +12,7 @@ custom:
         version: v1.0
         title: ServImage API
         description: Serverless application for images sharing
-    models:
-      - name: GroupRequest
-        contentType: application/json
-        schema: ${file(models/create-group-request.json)}
+
 
 plugins:
   - serverless-webpack
@@ -57,12 +54,9 @@ functions:
           method: post
           path: groups
           cors: true
-          reqValidatorName: RequestBodyValidator
-          documentation:
-            summary: Create a new group
-            description: Create a new group
-            requestModels:
-              'application/json': GroupRequest
+          request:
+            schema:
+              application/json: ${file(models/create-group-request.json)}
 
 resources:
   Resources:
