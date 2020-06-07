@@ -31,7 +31,7 @@ provider:
     GROUPS_TABLE: Groups-${self:provider.stage}
     IMAGES_TABLE: Images-${self:provider.stage}
     IMAGE_ID_INDEX: ImageIdIndex
-    IMAGES_S£_BUCKET: serverless-node-images-${self:provider.stage}
+    IMAGES_S3_BUCKET: serverless-node-images-${self:provider.stage}
     SIGNED_URL_EXPIRATION: 300
 
   iamRoleStatements:
@@ -50,7 +50,11 @@ provider:
       Action:
         - dynamodb:Query
       Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.IMAGES_TABLE}/index/${self:provider.environment.IMAGE_ID_INDEX}
-
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+      Resource: arn:aws:s3:::${self:provider.environment.IMAGES_S3_BUCKET}/*
 
 functions:
   getGroups:

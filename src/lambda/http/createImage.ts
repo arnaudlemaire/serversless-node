@@ -3,10 +3,16 @@ import 'source-map-support/register'
 import * as AWS  from 'aws-sdk'
 import * as uuid from 'uuid'
 
-const docClient = new AWS.DynamoDB.DocumentClient()
-
 const groupsTable = process.env.GROUPS_TABLE
 const imagesTable = process.env.IMAGES_TABLE
+const bucketName = process.env.IMAGES_S3_BUCKET
+const urlExpirationTime = parseInt(process.env.SIGNED_URL_EXPIRATION)
+
+const docClient = new AWS.DynamoDB.DocumentClient()
+
+const s3 = new AWS.S3({
+  signatureVersion: 'v4'
+})
 
 export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
 
@@ -28,12 +34,14 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
 
   const parsedBody = JSON.parse(event.body)
   const imageTitle = parsedBody.imageTitle
+  const imageId = uuid.v4()
   console.log(`parsedBody: ${parsedBody}`)
   const newImage = {
-    "imageId": uuid.v4(),
-    "groupId": groupId,
-    "timestamp": new Date().toISOString(),
-    "imageTitle": imageTitle      
+    'imageId': imageId,
+    'groupId': groupId,
+    'timestamp': new Date().toISOString(),
+    'imageTitle': imageTitle,
+    'imageUrl': `https://${bucketName}.s3.amazonaws.com/${imageId}`
   }
 
   await docClient.put({
@@ -41,13 +49,16 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
     Item: newImage
   }).promise()
 
+  const url = await getUploadUrl(imageId)
+  console.log(`signedUrl: ${url}`)
   return {
     statusCode: 201,
     headers: {
       'Access-Control-Allow-Origin': '*'
     },
     body: JSON.stringify({
-        newImage: newImage
+        newImage: newImage,
+        uploadUrl: url
     })
   }
 }
@@ -63,4 +74,12 @@ async function groupExists(groupId: string) {
 
   console.log('Get group: ', result)
   return !!result.Item
+}
+
+async function getUploadUrl(imageId: string) {
+  return s3.getSignedUrl('putObject', {
+    Bucket: bucketName,
+    Key: imageId,
+    Expires: urlExpirationTime
+  })
 }
